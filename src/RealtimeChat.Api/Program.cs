@@ -14,9 +14,11 @@ using RealtimeChat.Api.Features.Users;
 using RealtimeChat.Api.Logging;
 using RealtimeChat.Infrastructure;
 using RealtimeChat.Infrastructure.Persistence;
+using RealtimeChat.Infrastructure.Presence;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Core;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,14 +35,27 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "ConnectionStrings:Chat is not configured. Use 'dotnet user-secrets' or the ConnectionStrings__Chat environment variable.");
 }
 
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+if (string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Redis is not configured. Use 'dotnet user-secrets' or the ConnectionStrings__Redis environment variable.");
+}
+
+// One connection for presence and the SignalR backplane.
+var redis = await ConnectionMultiplexer.ConnectAsync(redisConnectionString);
+
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddChatPersistence(connectionString);
+builder.Services.AddChatPresence(builder.Configuration, redis);
 builder.Services.AddChatAuth(builder.Configuration);
 
 builder.Services.Configure<ChatLimits>(builder.Configuration.GetSection(ChatLimits.Section));
 builder.Services.AddSingleton<SendRateLimiter>();
 builder.Services.AddSingleton<ChatEvents>();
 builder.Services.AddScoped<MessageService>();
+builder.Services.AddSingleton<PresenceNotifier>();
+builder.Services.AddSingleton<IPresenceListener>(provider => provider.GetRequiredService<PresenceNotifier>());
 builder.Services.AddSingleton<IUserIdProvider, SubjectUserIdProvider>();
 builder.Services.AddSignalR(options =>
     {
@@ -48,7 +63,13 @@ builder.Services.AddSignalR(options =>
         // A message is at most 4000 characters; nothing a client sends needs more than this.
         options.MaximumReceiveMessageSize = 32 * 1024;
     })
-    .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+    // Every instance publishes hub messages through Redis, so a message reaches a member connected anywhere.
+    .AddStackExchangeRedis(options =>
+    {
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("realtime-chat");
+        options.ConnectionFactory = _ => Task.FromResult<IConnectionMultiplexer>(redis);
+    });
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -81,7 +102,8 @@ builder.Services.AddOpenApi(options => options
     .AddDocumentTransformer<SecuritySchemesTransformer>()
     .AddOperationTransformer<SecuritySchemesTransformer>());
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<ChatDbContext>("database", tags: ["ready"]);
+    .AddDbContextCheck<ChatDbContext>("database", tags: ["ready"])
+    .AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -113,6 +135,7 @@ app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapConversationEndpoints();
 app.MapMessageEndpoints();
+app.MapPresenceEndpoints();
 app.MapHub<ChatHub>(AuthSetup.HubPath);
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });

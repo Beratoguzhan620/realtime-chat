@@ -15,6 +15,10 @@ public sealed record MessagePageDto(List<MessageDto> Messages, bool HasMore);
 
 public sealed record ReadReceiptDto(Guid ConversationId, Guid UserId, long Seq);
 
+public sealed record TypingDto(Guid ConversationId, Guid UserId);
+
+public sealed record PresenceDto(Guid UserId, bool Online);
+
 /// <summary>
 /// A real SignalR client over WebSockets against the in-memory test server, the way the web client connects:
 /// no negotiate request, the token on the connection. Every event it receives is kept for assertions.
@@ -32,6 +36,10 @@ public sealed class ChatConnection : IAsyncDisposable
     public ConcurrentQueue<ReadReceiptDto> Reads { get; } = new();
 
     public ConcurrentQueue<Guid> ConversationChanges { get; } = new();
+
+    public ConcurrentQueue<TypingDto> Typing { get; } = new();
+
+    public ConcurrentQueue<PresenceDto> Presence { get; } = new();
 
     public static async Task<ChatConnection> OpenAsync<T>(WebApplicationFactory<T> factory, string token)
         where T : class
@@ -57,6 +65,8 @@ public sealed class ChatConnection : IAsyncDisposable
         hub.On<MessageDto>("MessageUpdated", connection.Updated.Enqueue);
         hub.On<ReadReceiptDto>("ReadUpdated", connection.Reads.Enqueue);
         hub.On<Guid>("ConversationChanged", connection.ConversationChanges.Enqueue);
+        hub.On<TypingDto>("Typing", connection.Typing.Enqueue);
+        hub.On<PresenceDto>("PresenceChanged", connection.Presence.Enqueue);
         await hub.StartAsync();
         return connection;
     }

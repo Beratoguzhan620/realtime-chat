@@ -22,6 +22,12 @@ internal sealed class ChatEvents(IHubContext<ChatHub, IChatClient> hub)
     public Task ConversationChanged(IEnumerable<Guid> members, Guid conversationId) =>
         Users(members).ConversationChanged(conversationId);
 
+    public Task Typing(IEnumerable<Guid> members, TypingEvent typing) =>
+        Users(members).Typing(typing);
+
+    public Task PresenceChanged(IEnumerable<Guid> contacts, PresenceEvent presence) =>
+        Users(contacts).PresenceChanged(presence);
+
     private IChatClient Users(IEnumerable<Guid> members) =>
         hub.Clients.Users(members.Select(m => m.ToString()).ToList());
 }
