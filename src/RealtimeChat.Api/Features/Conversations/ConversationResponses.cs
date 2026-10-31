@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealtimeChat.Api.Features.Messages;
 using RealtimeChat.Core;
 using RealtimeChat.Core.Conversations;
 using RealtimeChat.Infrastructure.Persistence;
@@ -15,7 +16,8 @@ public sealed record ConversationResponse(
     IReadOnlyList<MemberResponse> Members,
     long LastSeq,
     long UnreadCount,
-    DateTimeOffset LastActivityAt);
+    DateTimeOffset LastActivityAt,
+    MessageResponse? LastMessage);
 
 internal static class ConversationResponses
 {
@@ -26,6 +28,10 @@ internal static class ConversationResponses
         var names = await db.Users.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+        var ids = conversations.Select(c => c.Id).ToList();
+        var lastMessages = await db.Messages.AsNoTracking()
+            .Where(m => ids.Contains(m.ConversationId) && db.Conversations.Any(c => c.Id == m.ConversationId && c.LastSeq == m.Seq))
+            .ToDictionaryAsync(m => m.ConversationId, ct);
 
         return conversations.Select(c =>
         {
@@ -38,7 +44,8 @@ internal static class ConversationResponses
             var title = c.Kind == ConversationKind.Group
                 ? c.Title!
                 : members.FirstOrDefault(m => m.UserId != viewer)?.DisplayName ?? "Former user";
-            return new ConversationResponse(c.Id, c.Kind, title, members, c.LastSeq, Math.Max(0, c.LastSeq - me.LastReadSeq), c.LastActivityAt);
+            var last = lastMessages.TryGetValue(c.Id, out var message) ? MessageResponse.From(message) : null;
+            return new ConversationResponse(c.Id, c.Kind, title, members, c.LastSeq, Math.Max(0, c.LastSeq - me.LastReadSeq), c.LastActivityAt, last);
         }).ToList();
     }
 

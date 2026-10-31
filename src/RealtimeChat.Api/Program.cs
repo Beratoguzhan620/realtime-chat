@@ -3,10 +3,13 @@ using System.Text.Json.Serialization;
 using System.Text.Unicode;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using RealtimeChat.Api.Common;
 using RealtimeChat.Api.Features.Auth;
 using RealtimeChat.Api.Features.Conversations;
+using RealtimeChat.Api.Features.Hub;
+using RealtimeChat.Api.Features.Messages;
 using RealtimeChat.Api.Features.Users;
 using RealtimeChat.Api.Logging;
 using RealtimeChat.Infrastructure;
@@ -33,6 +36,19 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddChatPersistence(connectionString);
 builder.Services.AddChatAuth(builder.Configuration);
+
+builder.Services.Configure<ChatLimits>(builder.Configuration.GetSection(ChatLimits.Section));
+builder.Services.AddSingleton<SendRateLimiter>();
+builder.Services.AddSingleton<ChatEvents>();
+builder.Services.AddScoped<MessageService>();
+builder.Services.AddSingleton<IUserIdProvider, SubjectUserIdProvider>();
+builder.Services.AddSignalR(options =>
+    {
+        options.AddFilter<HubErrorFilter>();
+        // A message is at most 4000 characters; nothing a client sends needs more than this.
+        options.MaximumReceiveMessageSize = 32 * 1024;
+    })
+    .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -96,6 +112,8 @@ app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapConversationEndpoints();
+app.MapMessageEndpoints();
+app.MapHub<ChatHub>(AuthSetup.HubPath);
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
