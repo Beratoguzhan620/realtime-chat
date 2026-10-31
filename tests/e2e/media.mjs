@@ -111,7 +111,7 @@ await shot(ayse, "group");
 
 await ayse.getByRole("button", { name: "New", exact: true }).click();
 await ayse.getByLabel("Search people").fill("Elif");
-await ayse.getByRole("button", { name: names.elif }).click();
+await ayse.locator("dialog").getByRole("button", { name: names.elif }).click();
 await shot(ayse, "new-conversation");
 await ayse.keyboard.press("Escape");
 

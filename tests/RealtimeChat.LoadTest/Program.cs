@@ -54,6 +54,7 @@ foreach (var chunk in accounts.Chunk(groupSize))
 var latencies = new ConcurrentBag<double>();
 long delivered = 0;
 var connections = new ConcurrentDictionary<Guid, HubConnection>();
+long connectRetries = 0;
 clock.Restart();
 await Parallel.ForEachAsync(accounts, new ParallelOptions { MaxDegreeOfParallelism = 64 }, async (account, ct) =>
 {
@@ -76,10 +77,23 @@ await Parallel.ForEachAsync(accounts, new ParallelOptions { MaxDegreeOfParalleli
         latencies.Add(Stopwatch.GetElapsedTime(sentAt).TotalMilliseconds);
         Interlocked.Increment(ref delivered);
     });
-    await connection.StartAsync(ct);
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            await connection.StartAsync(ct);
+            break;
+        }
+        catch (Exception) when (attempt < 3)
+        {
+            Interlocked.Increment(ref connectRetries);
+            await Task.Delay(500 * attempt, ct);
+        }
+    }
+
     connections[account.Id] = connection;
 });
-Console.WriteLine($"Opened {connections.Count} WebSocket connections in {clock.Elapsed.TotalSeconds:F1} s");
+Console.WriteLine($"Opened {connections.Count} WebSocket connections in {clock.Elapsed.TotalSeconds:F1} s ({connectRetries} retried)");
 
 // 4. Traffic: everyone sends every few seconds, spread evenly so the load is steady.
 long sent = 0, failed = 0;
