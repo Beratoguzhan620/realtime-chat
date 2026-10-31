@@ -63,11 +63,11 @@ public sealed class ConversationTests(ApiFactory factory)
         Assert.Equal("Owner", group.Members[0].Role);
         foreach (var member in new[] { ayse, mehmet, zeynep })
         {
-            var list = await member.Http.GetFromJsonAsync<List<ConversationDto>>("/api/conversations", Api.Json);
+            var list = await member.Http.GetFromJsonAsync<List<ConversationDto>>("/api/conversations", TestApi.Json);
             Assert.Contains(list!, c => c.Id == group.Id);
         }
 
-        Assert.DoesNotContain(await outsider.Http.GetFromJsonAsync<List<ConversationDto>>("/api/conversations", Api.Json) ?? [], c => c.Id == group.Id);
+        Assert.DoesNotContain(await outsider.Http.GetFromJsonAsync<List<ConversationDto>>("/api/conversations", TestApi.Json) ?? [], c => c.Id == group.Id);
         var peek = await outsider.Http.GetAsync($"/api/conversations/{group.Id}");
         Assert.Equal(HttpStatusCode.NotFound, peek.StatusCode);
         Assert.Equal("not_found", await peek.ProblemCodeAsync());
@@ -102,7 +102,7 @@ public sealed class ConversationTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, (await ayse.Http.PostAsync($"/api/conversations/{group.Id}/leave", null)).StatusCode);
 
         Assert.Equal(HttpStatusCode.NotFound, (await ayse.Http.GetAsync($"/api/conversations/{group.Id}")).StatusCode);
-        var after = await mehmet.Http.GetFromJsonAsync<ConversationDto>($"/api/conversations/{group.Id}", Api.Json);
+        var after = await mehmet.Http.GetFromJsonAsync<ConversationDto>($"/api/conversations/{group.Id}", TestApi.Json);
         Assert.Equal("Owner", Assert.Single(after!.Members).Role);
     }
 
@@ -111,12 +111,12 @@ public sealed class ConversationTests(ApiFactory factory)
     {
         using var ayse = await factory.RegisterAsync("Ayşe");
         using var client = factory.CreateClient();
-        var email = Api.UniqueEmail("selin");
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Selin Kaya", password = Api.Password })).EnsureSuccessStatusCode();
+        var email = TestApi.UniqueEmail("selin");
+        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Selin Kaya", password = TestApi.Password })).EnsureSuccessStatusCode();
 
         var byName = await ayse.Http.GetStringAsync("/api/users?query=selin%20ka");
-        var byEmail = await ayse.Http.GetFromJsonAsync<List<UserDto>>($"/api/users?query={Uri.EscapeDataString(email)}", Api.Json);
-        var byPartOfEmail = await ayse.Http.GetFromJsonAsync<List<UserDto>>($"/api/users?query={Uri.EscapeDataString(email[..10])}", Api.Json);
+        var byEmail = await ayse.Http.GetFromJsonAsync<List<UserDto>>($"/api/users?query={Uri.EscapeDataString(email)}", TestApi.Json);
+        var byPartOfEmail = await ayse.Http.GetFromJsonAsync<List<UserDto>>($"/api/users?query={Uri.EscapeDataString(email[..10])}", TestApi.Json);
 
         Assert.Contains("Selin Kaya", byName, StringComparison.Ordinal);
         Assert.DoesNotContain("@", byName, StringComparison.Ordinal);

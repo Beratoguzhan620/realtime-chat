@@ -28,7 +28,7 @@ public sealed class Person(UserDto user, string token, HttpClient http) : IDispo
     public void Dispose() => Http.Dispose();
 }
 
-public static class Api
+public static class TestApi
 {
     public const string Password = "correct-horse-battery";
 

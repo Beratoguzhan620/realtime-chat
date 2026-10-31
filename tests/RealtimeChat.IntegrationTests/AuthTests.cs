@@ -22,10 +22,10 @@ public sealed class AuthTests(ApiFactory factory)
     public async Task An_email_registers_once_whatever_its_case()
     {
         using var client = factory.CreateClient();
-        var email = Api.UniqueEmail("mehmet");
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Mehmet", password = Api.Password })).EnsureSuccessStatusCode();
+        var email = TestApi.UniqueEmail("mehmet");
+        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Mehmet", password = TestApi.Password })).EnsureSuccessStatusCode();
 
-        var again = await client.PostAsJsonAsync("/api/auth/register", new { email = email.ToUpperInvariant(), displayName = "Mehmet 2", password = Api.Password });
+        var again = await client.PostAsJsonAsync("/api/auth/register", new { email = email.ToUpperInvariant(), displayName = "Mehmet 2", password = TestApi.Password });
 
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("email_taken", await again.ProblemCodeAsync());
@@ -49,12 +49,12 @@ public sealed class AuthTests(ApiFactory factory)
     public async Task Login_returns_a_working_token_and_wrong_details_get_one_answer()
     {
         using var client = factory.CreateClient();
-        var email = Api.UniqueEmail("zeynep");
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Zeynep", password = Api.Password })).EnsureSuccessStatusCode();
+        var email = TestApi.UniqueEmail("zeynep");
+        (await client.PostAsJsonAsync("/api/auth/register", new { email, displayName = "Zeynep", password = TestApi.Password })).EnsureSuccessStatusCode();
 
-        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = Api.Password });
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = TestApi.Password });
         var wrongPassword = await client.PostAsJsonAsync("/api/auth/login", new { email, password = "wrong-password-123" });
-        var unknownEmail = await client.PostAsJsonAsync("/api/auth/login", new { email = Api.UniqueEmail("nobody"), password = Api.Password });
+        var unknownEmail = await client.PostAsJsonAsync("/api/auth/login", new { email = TestApi.UniqueEmail("nobody"), password = TestApi.Password });
 
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
