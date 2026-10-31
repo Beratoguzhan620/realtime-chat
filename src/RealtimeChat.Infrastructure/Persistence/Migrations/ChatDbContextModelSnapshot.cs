@@ -91,6 +91,10 @@ namespace RealtimeChat.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("last_read_seq");
 
+                    b.Property<long>("NotifiedSeq")
+                        .HasColumnType("bigint")
+                        .HasColumnName("notified_seq");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(10)
