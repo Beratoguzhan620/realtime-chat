@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using RealtimeChat.Api.Common;
+using RealtimeChat.Api.Features.Hub;
 using RealtimeChat.Core;
 using RealtimeChat.Core.Conversations;
 using RealtimeChat.Infrastructure.Persistence;
@@ -54,7 +55,7 @@ internal static class ConversationEndpoints
     }
 
     private static async Task<Results<Created<ConversationResponse>, Ok<ConversationResponse>>> StartDirect(
-        StartDirectRequest request, ClaimsPrincipal principal, ChatDbContext db, TimeProvider clock, CancellationToken ct)
+        StartDirectRequest request, ClaimsPrincipal principal, ChatDbContext db, ChatEvents events, TimeProvider clock, CancellationToken ct)
     {
         var me = principal.UserId();
         await RequireUsersAsync(db, [request.UserId], ct);
@@ -80,11 +81,12 @@ internal static class ConversationEndpoints
             return TypedResults.Ok(await ConversationResponses.BuildAsync(db, winner, me, ct));
         }
 
+        await events.ConversationChanged([request.UserId], conversation.Id);
         return TypedResults.Created($"/api/conversations/{conversation.Id}", await ConversationResponses.BuildAsync(db, conversation, me, ct));
     }
 
     private static async Task<Results<Created<ConversationResponse>, ValidationProblem>> StartGroup(
-        StartGroupRequest request, ClaimsPrincipal principal, ChatDbContext db, TimeProvider clock, CancellationToken ct)
+        StartGroupRequest request, ClaimsPrincipal principal, ChatDbContext db, ChatEvents events, TimeProvider clock, CancellationToken ct)
     {
         var validation = new Validation()
             .Require(!string.IsNullOrWhiteSpace(request.Title), "title", "Give the group a title.")
@@ -101,11 +103,12 @@ internal static class ConversationEndpoints
         var conversation = Conversation.StartGroup(me, request.Title, others, clock.GetUtcNow());
         db.Conversations.Add(conversation);
         await db.SaveChangesAsync(ct);
+        await events.ConversationChanged(others, conversation.Id);
         return TypedResults.Created($"/api/conversations/{conversation.Id}", await ConversationResponses.BuildAsync(db, conversation, me, ct));
     }
 
     private static async Task<Results<Ok<ConversationResponse>, ValidationProblem>> AddMembers(
-        Guid id, AddMembersRequest request, ClaimsPrincipal principal, ChatDbContext db, TimeProvider clock, CancellationToken ct)
+        Guid id, AddMembersRequest request, ClaimsPrincipal principal, ChatDbContext db, ChatEvents events, TimeProvider clock, CancellationToken ct)
     {
         var validation = new Validation().Require(request.UserIds is { Count: > 0 }, "userIds", "Name at least one person.");
         if (!validation.IsValid)
@@ -118,25 +121,28 @@ internal static class ConversationEndpoints
         await RequireUsersAsync(db, request.UserIds, ct);
         conversation.AddMembers(me, request.UserIds, clock.GetUtcNow());
         await db.SaveChangesAsync(ct);
+        await events.ConversationChanged(conversation.Members.Select(m => m.UserId), conversation.Id);
         return TypedResults.Ok(await ConversationResponses.BuildAsync(db, conversation, me, ct));
     }
 
     private static async Task<Ok<ConversationResponse>> Rename(
-        Guid id, RenameRequest request, ClaimsPrincipal principal, ChatDbContext db, CancellationToken ct)
+        Guid id, RenameRequest request, ClaimsPrincipal principal, ChatDbContext db, ChatEvents events, CancellationToken ct)
     {
         var me = principal.UserId();
         var conversation = await ConversationResponses.LoadForMemberAsync(db, id, me, ct);
         conversation.Rename(me, request.Title);
         await db.SaveChangesAsync(ct);
+        await events.ConversationChanged(conversation.Members.Select(m => m.UserId), conversation.Id);
         return TypedResults.Ok(await ConversationResponses.BuildAsync(db, conversation, me, ct));
     }
 
-    private static async Task<NoContent> Leave(Guid id, ClaimsPrincipal principal, ChatDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Leave(Guid id, ClaimsPrincipal principal, ChatDbContext db, ChatEvents events, CancellationToken ct)
     {
         var me = principal.UserId();
         var conversation = await ConversationResponses.LoadForMemberAsync(db, id, me, ct);
         conversation.Leave(me);
         await db.SaveChangesAsync(ct);
+        await events.ConversationChanged(conversation.Members.Select(m => m.UserId).Append(me), conversation.Id);
         return TypedResults.NoContent();
     }
 
