@@ -52,6 +52,8 @@ services:
       redis:
         condition: service_healthy
     environment: *api-environment
+    ulimits:
+      nofile: 65536
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q Healthy <&3"]
       interval: 5s
@@ -62,6 +64,8 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
+    ulimits:
+      nofile: 65536
     depends_on:
       api:
         condition: service_healthy
