@@ -12,7 +12,7 @@ public sealed record TokenDto(string AccessToken, string TokenType, DateTimeOffs
 
 public sealed record MemberDto(Guid UserId, string DisplayName, string Role, long LastReadSeq);
 
-public sealed record ConversationDto(Guid Id, string Kind, string Title, List<MemberDto> Members, long LastSeq, long UnreadCount, DateTimeOffset LastActivityAt);
+public sealed record ConversationDto(Guid Id, string Kind, string Title, List<MemberDto> Members, long LastSeq, long UnreadCount, DateTimeOffset LastActivityAt, MessageDto? LastMessage);
 
 /// <summary>A registered person with an HTTP client that carries their token.</summary>
 public sealed class Person(UserDto user, string token, HttpClient http) : IDisposable
