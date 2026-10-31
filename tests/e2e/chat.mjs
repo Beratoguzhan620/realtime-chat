@@ -69,10 +69,10 @@ await step("two people register and see an empty list", async () => {
 await step("Ayşe finds Mehmet by name and starts a chat", async () => {
   await ayse.getByRole("button", { name: "New", exact: true }).click();
   await ayse.getByLabel("Search people").fill(`Mehmet Demir ${run}`);
-  await ayse.getByRole("button", { name: people.mehmet.name }).click();
+  await ayse.locator("dialog").getByRole("button", { name: people.mehmet.name }).click();
   await ayse.getByRole("button", { name: "Start chat" }).click();
   await ayse.getByRole("heading", { name: people.mehmet.name }).waitFor();
-  await ayse.getByText("No messages yet").waitFor();
+  await ayse.locator(".messages").getByText("No messages yet").waitFor();
 });
 
 await step("the new conversation appears for Mehmet without a reload, with him shown online", async () => {
