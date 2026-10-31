@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
 using RealtimeChat.IntegrationTests.Support;
 
 namespace RealtimeChat.IntegrationTests;
