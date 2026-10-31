@@ -81,8 +81,8 @@ await step("the new conversation appears for Mehmet without a reload, with him s
 });
 
 await step("a message arrives live and shows as unread", async () => {
-  await ayse.getByLabel("Message").fill("Merhaba! Kargo bugün çıktı mı?");
-  await ayse.getByLabel("Message").press("Enter");
+  await ayse.getByLabel("Message", { exact: true }).fill("Merhaba! Kargo bugün çıktı mı?");
+  await ayse.getByLabel("Message", { exact: true }).press("Enter");
   await ayse.locator(".bubble.mine").filter({ hasText: "Kargo bugün" }).waitFor();
   const row = mehmet.locator(`[data-conversation="${people.ayse.name}"]`);
   await row.getByLabel("1 unread").waitFor();
@@ -91,21 +91,21 @@ await step("a message arrives live and shows as unread", async () => {
 
 await step("opening it reads it, and Ayşe sees the read ticks", async () => {
   await mehmet.locator(`[data-conversation="${people.ayse.name}"]`).click();
-  await mehmet.getByText("Merhaba! Kargo bugün çıktı mı?").waitFor();
+  await mehmet.locator(".bubble").filter({ hasText: "Merhaba! Kargo bugün çıktı mı?" }).first().waitFor();
   await ayse.getByLabel("Read", { exact: true }).waitFor();
   await mehmet.locator(`[data-conversation="${people.ayse.name}"] .badge`).waitFor({ state: "detached" });
 });
 
 await step("typing shows on the other side", async () => {
-  await mehmet.getByLabel("Message").pressSequentially("Evet, akşa", { delay: 40 });
+  await mehmet.getByLabel("Message", { exact: true }).pressSequentially("Evet, akşa", { delay: 40 });
   await ayse.getByText(/is typing…/).waitFor();
 });
 
 await step("a reply with several lines keeps its line breaks", async () => {
-  await mehmet.getByLabel("Message").fill("Evet, akşam teslim edilir.");
-  await mehmet.getByLabel("Message").press("Shift+Enter");
-  await mehmet.getByLabel("Message").pressSequentially("Takip no: YK123456789");
-  await mehmet.getByLabel("Message").press("Enter");
+  await mehmet.getByLabel("Message", { exact: true }).fill("Evet, akşam teslim edilir.");
+  await mehmet.getByLabel("Message", { exact: true }).press("Shift+Enter");
+  await mehmet.getByLabel("Message", { exact: true }).pressSequentially("Takip no: YK123456789");
+  await mehmet.getByLabel("Message", { exact: true }).press("Enter");
   const bubble = ayse.locator(".bubble").filter({ hasText: "YK123456789" });
   await bubble.waitFor();
   const text = await bubble.locator(".body").innerText();
@@ -118,21 +118,21 @@ await step("the sender edits a message and the other side sees the change", asyn
   await bubble.getByLabel("Edit message").click();
   await ayse.getByLabel("Edited text").fill("Merhaba! Kargo bugün yola çıktı mı?");
   await ayse.getByLabel("Save").click();
-  await mehmet.getByText("Merhaba! Kargo bugün yola çıktı mı?").waitFor();
+  await mehmet.locator(".bubble").filter({ hasText: "Merhaba! Kargo bugün yola çıktı mı?" }).first().waitFor();
   await mehmet.locator(".bubble").filter({ hasText: "yola çıktı" }).getByText("edited").waitFor();
 });
 
 await step("a reload keeps the session and the history", async () => {
   await mehmet.reload();
   await mehmet.locator(`[data-conversation="${people.ayse.name}"]`).click();
-  await mehmet.getByText("Takip no: YK123456789").waitFor();
+  await mehmet.locator(".bubble").filter({ hasText: "Takip no: YK123456789" }).first().waitFor();
 });
 
 await step("messages sent while someone is away are there when they come back", async () => {
   await mehmet.close();
   for (const text of ["Bir şey daha", "Adres değişti, haber veririm"]) {
-    await ayse.getByLabel("Message").fill(text);
-    await ayse.getByLabel("Message").press("Enter");
+    await ayse.getByLabel("Message", { exact: true }).fill(text);
+    await ayse.getByLabel("Message", { exact: true }).press("Enter");
     await ayse.locator(".bubble.mine").filter({ hasText: text }).locator(".ticks").waitFor();
   }
   const back = await open();
@@ -143,7 +143,7 @@ await step("messages sent while someone is away are there when they come back", 
   const row = back.locator(`[data-conversation="${people.ayse.name}"]`);
   await row.getByLabel("2 unread").waitFor();
   await row.click();
-  await back.getByText("Adres değişti, haber veririm").waitFor();
+  await back.locator(".bubble").filter({ hasText: "Adres değişti, haber veririm" }).first().waitFor();
   await back.close();
 });
 
@@ -155,7 +155,7 @@ await step("the layout holds on a phone", async () => {
   await phone.getByRole("button", { name: "Sign in" }).click();
   await phone.locator(`[data-conversation="${people.mehmet.name}"]`).click();
   await phone.getByLabel("Back to conversations").waitFor();
-  await phone.getByText("Adres değişti, haber veririm").waitFor();
+  await phone.locator(".bubble").filter({ hasText: "Adres değişti, haber veririm" }).first().waitFor();
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) throw new Error("the page scrolls sideways");
   await phone.screenshot({ path: `${OUT}phone.png` });
