@@ -11,15 +11,26 @@ namespace RealtimeChat.Infrastructure.Persistence;
 /// </summary>
 public static class MessageSequence
 {
-    public static async Task<long> NextAsync(ChatDbContext db, Guid conversationId, DateTimeOffset now, CancellationToken ct)
+    /// <summary>
+    /// Takes the next number and marks it read for the sender, in one round trip: the sender has read their own
+    /// message.
+    /// </summary>
+    public static async Task<long> NextAsync(ChatDbContext db, Guid conversationId, Guid senderId, DateTimeOffset now, CancellationToken ct)
     {
         await db.Database.OpenConnectionAsync(ct);
         await using var command = Command(db, """
-            UPDATE conversations SET last_seq = last_seq + 1, last_activity_at = @now
-            WHERE id = @id
-            RETURNING last_seq
+            WITH next AS (
+                UPDATE conversations SET last_seq = last_seq + 1, last_activity_at = @now
+                WHERE id = @id
+                RETURNING last_seq
+            ), sender AS (
+                UPDATE members SET last_read_seq = (SELECT last_seq FROM next)
+                WHERE conversation_id = @id AND user_id = @sender
+            )
+            SELECT last_seq FROM next
             """);
         Add(command, "id", conversationId);
+        Add(command, "sender", senderId);
         Add(command, "now", now);
         return (long)(await command.ExecuteScalarAsync(ct)
             ?? throw new InvalidOperationException("The conversation disappeared while sending."));

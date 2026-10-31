@@ -7,5 +7,6 @@ COPY web/ ./
 RUN npm run build
 
 FROM nginx:1.29-alpine
+COPY deploy/nginx.main.conf /etc/nginx/nginx.conf
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /web/dist /usr/share/nginx/html

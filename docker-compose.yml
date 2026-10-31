@@ -5,10 +5,14 @@ name: realtime-chat
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Production
+  # Only nginx can reach the API containers, so its X-Forwarded-For is trusted: rate limits see the real client.
+  ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
   ConnectionStrings__Chat: "Host=db;Database=chat;Username=chat;Password=${POSTGRES_PASSWORD:-chat-local}"
   ConnectionStrings__Redis: "redis:6379"
   Database__MigrateOnStartup: "true"
   Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-signing-key-change-me-in-the-env-file-0123456789}
+  # Sign-in and registration attempts per minute per address; the load test raises it.
+  Auth__AttemptsPerMinute: ${AUTH_ATTEMPTS_PER_MINUTE:-10}
   # Set these to email offline people through the notification-service.
   UnreadEmails__BaseUrl: ${NOTIFICATION_SERVICE_URL:-}
   UnreadEmails__ApiKey: ${NOTIFICATION_SERVICE_KEY:-}
@@ -16,6 +20,8 @@ x-api-environment: &api-environment
 services:
   db:
     image: postgres:17-alpine
+    # Each API instance keeps up to 100 pooled connections; the default limit of 100 would not fit two of them.
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_DB: chat
       POSTGRES_USER: chat
@@ -48,6 +54,8 @@ services:
       redis:
         condition: service_healthy
     environment: *api-environment
+    ulimits:
+      nofile: 65536
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q Healthy <&3"]
       interval: 5s
@@ -58,6 +66,8 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
+    ulimits:
+      nofile: 65536
     depends_on:
       api:
         condition: service_healthy

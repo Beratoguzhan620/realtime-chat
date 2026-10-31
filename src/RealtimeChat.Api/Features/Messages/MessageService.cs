@@ -14,26 +14,20 @@ internal sealed partial class MessageService(
     public const int MaxPageSize = 200;
 
     /// <summary>
-    /// Stores a message and tells every member. A resend with the same client message id returns the stored
-    /// message and tells nobody again, so a client may retry whenever it is unsure.
+    /// Stores a message and tells every member: one query for the members, one for the number, one insert.
+    /// A resend with the same client message id returns the stored message and tells nobody again, so a
+    /// client may retry whenever it is unsure.
     /// </summary>
     public async Task<SendResult> SendAsync(Guid senderId, Guid conversationId, Guid clientMessageId, string body, CancellationToken ct)
     {
-        var existing = await FindResendAsync(senderId, conversationId, clientMessageId, ct);
-        if (existing is not null)
-        {
-            return new SendResult(MessageResponse.From(existing), Replayed: true);
-        }
-
         var checkedBody = Message.CheckBody(body);
-        limiter.Take(senderId);
         var members = await MemberIdsAsync(conversationId, senderId, ct);
 
         Message message;
         await using (var transaction = await db.Database.BeginTransactionAsync(ct))
         {
             var now = clock.GetUtcNow();
-            var seq = await MessageSequence.NextAsync(db, conversationId, now, ct);
+            var seq = await MessageSequence.NextAsync(db, conversationId, senderId, now, ct);
             message = Message.Create(conversationId, seq, senderId, clientMessageId, checkedBody, now);
             db.Messages.Add(message);
             try
@@ -42,16 +36,17 @@ internal sealed partial class MessageService(
             }
             catch (DbUpdateException ex) when (ex.IsUniqueViolation("ix_messages_conversation_id_sender_id_client_message_id"))
             {
-                // The same message arrived twice at the same moment (two tabs, a retry racing the original).
+                // A resend (a retry after a timeout, a second tab, a race with the original): rolling back returns
+                // the number just taken, and the caller gets the message that was stored the first time.
                 await transaction.RollbackAsync(ct);
                 db.ChangeTracker.Clear();
-                var winner = await FindResendAsync(senderId, conversationId, clientMessageId, ct)
-                    ?? throw new InvalidOperationException("A duplicate message vanished.");
-                return new SendResult(MessageResponse.From(winner), Replayed: true);
+                var stored = await db.Messages.AsNoTracking().SingleAsync(
+                    m => m.ConversationId == conversationId && m.SenderId == senderId && m.ClientMessageId == clientMessageId, ct);
+                return new SendResult(MessageResponse.From(stored), Replayed: true);
             }
 
-            // Senders have read their own message.
-            await MessageSequence.MarkReadAsync(db, conversationId, senderId, seq, ct);
+            // Only new messages count against the rate limit, so retrying is always allowed.
+            limiter.Take(senderId);
             await transaction.CommitAsync(ct);
         }
 
@@ -154,10 +149,6 @@ internal sealed partial class MessageService(
 
         return members;
     }
-
-    private Task<Message?> FindResendAsync(Guid senderId, Guid conversationId, Guid clientMessageId, CancellationToken ct) =>
-        db.Messages.AsNoTracking().SingleOrDefaultAsync(
-            m => m.ConversationId == conversationId && m.SenderId == senderId && m.ClientMessageId == clientMessageId, ct);
 
     private async Task<Message> LoadForMemberAsync(Guid userId, Guid messageId, CancellationToken ct)
     {
