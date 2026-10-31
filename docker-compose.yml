@@ -20,6 +20,8 @@ x-api-environment: &api-environment
 services:
   db:
     image: postgres:17-alpine
+    # Each API instance keeps up to 100 pooled connections; the default limit of 100 would not fit two of them.
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_DB: chat
       POSTGRES_USER: chat
