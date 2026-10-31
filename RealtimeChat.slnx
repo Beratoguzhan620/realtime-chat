@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/RealtimeChat.UnitTests/RealtimeChat.UnitTests.csproj" />
     <Project Path="tests/RealtimeChat.IntegrationTests/RealtimeChat.IntegrationTests.csproj" />
+    <Project Path="tests/RealtimeChat.LoadTest/RealtimeChat.LoadTest.csproj" />
   </Folder>
 </Solution>
