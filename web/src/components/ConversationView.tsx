@@ -197,7 +197,8 @@ function Bubble({ message, conversation, meId, grouped, editing, onStartEdit, on
   return (
     <div className={`bubble-row${mine ? " mine" : ""}${grouped ? " grouped" : ""}`} data-seq={message.seq}>
       {!mine && conversation.kind === "Group" && !grouped && <span className="sender">{sender}</span>}
-      <div className={`bubble${mine ? " mine" : ""}${deleted ? " deleted" : ""}`}>
+      {/* Own messages can take focus, so a tap on a phone shows their edit and delete buttons. */}
+      <div className={`bubble${mine ? " mine" : ""}${deleted ? " deleted" : ""}`} tabIndex={mine && !deleted ? 0 : undefined}>
         {editing ? (
           <form className="edit-form" onSubmit={save}>
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus rows={2} aria-label="Edited text" />
