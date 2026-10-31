@@ -1,0 +1,11 @@
+{
+  "name": "realtime-chat-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "chat": "node chat.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.55.0"
+  }
+}
