@@ -35,6 +35,35 @@ jobs:
           dotnet tool install --global dotnet-ef --version 10.0.14
           dotnet ef migrations has-pending-model-changes --project src/RealtimeChat.Infrastructure --startup-project src/RealtimeChat.Api --no-build --configuration Release
 
+  web:
+    name: Web client
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run check
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
   docker:
     name: Docker Compose smoke test
     runs-on: ubuntu-latest
@@ -55,6 +84,38 @@ jobs:
           curl -sf $api/api/conversations/direct -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "{\"userId\":\"$other\"}" | jq -e '.kind == "Direct" and .title == "Mehmet"' > /dev/null
           test "$(docker compose ps --status running --quiet api | wc -l)" = "2"
           echo "Accounts and a conversation work through nginx, with two API instances running."
+
+      - name: Show logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down --volumes
+
+  e2e:
+    name: Two people chatting in browsers
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Start the stack
+        run: docker compose up --build --detach --wait --wait-timeout 300
+
+      - name: Install Playwright
+        working-directory: tests/e2e
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Run the flow
+        working-directory: tests/e2e
+        run: node chat.mjs
 
       - name: Show logs
         if: failure()
