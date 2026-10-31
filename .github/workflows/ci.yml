@@ -53,7 +53,8 @@ jobs:
           token=$(echo "$a" | jq -r .accessToken)
           other=$(echo "$b" | jq -r .user.id)
           curl -sf $api/api/conversations/direct -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "{\"userId\":\"$other\"}" | jq -e '.kind == "Direct" and .title == "Mehmet"' > /dev/null
-          echo "Accounts and a conversation work against the Compose stack."
+          test "$(docker compose ps --status running --quiet api | wc -l)" = "2"
+          echo "Accounts and a conversation work through nginx, with two API instances running."
 
       - name: Show logs
         if: failure()
