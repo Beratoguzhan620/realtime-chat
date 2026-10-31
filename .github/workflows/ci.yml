@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore RealtimeChat.slnx
+
+      - name: Build
+        run: dotnet build RealtimeChat.slnx --no-restore --configuration Release
+
+      - name: Unit tests
+        run: dotnet test tests/RealtimeChat.UnitTests/RealtimeChat.UnitTests.csproj --no-build --configuration Release --logger "console;verbosity=normal"
+
+      - name: Integration tests (Testcontainers)
+        run: dotnet test tests/RealtimeChat.IntegrationTests/RealtimeChat.IntegrationTests.csproj --no-build --configuration Release --logger "console;verbosity=normal"
+
+      - name: Check for model changes without a migration
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.14
+          dotnet ef migrations has-pending-model-changes --project src/RealtimeChat.Infrastructure --startup-project src/RealtimeChat.Api --no-build --configuration Release
+
+  docker:
+    name: Docker Compose smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the stack
+        run: docker compose up --build --detach --wait --wait-timeout 300
+
+      - name: Register two people and start a conversation
+        run: |
+          api=http://localhost:8080
+          a=$(curl -sf $api/api/auth/register -H 'Content-Type: application/json' -d '{"email":"ayse@example.com","displayName":"Ayşe","password":"smoke-test-password"}')
+          b=$(curl -sf $api/api/auth/register -H 'Content-Type: application/json' -d '{"email":"mehmet@example.com","displayName":"Mehmet","password":"smoke-test-password"}')
+          token=$(echo "$a" | jq -r .accessToken)
+          other=$(echo "$b" | jq -r .user.id)
+          curl -sf $api/api/conversations/direct -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "{\"userId\":\"$other\"}" | jq -e '.kind == "Direct" and .title == "Mehmet"' > /dev/null
+          echo "Accounts and a conversation work against the Compose stack."
+
+      - name: Show logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down --volumes

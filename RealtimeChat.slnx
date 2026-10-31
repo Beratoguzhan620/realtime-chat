@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RealtimeChat.Core/RealtimeChat.Core.csproj" />
+    <Project Path="src/RealtimeChat.Infrastructure/RealtimeChat.Infrastructure.csproj" />
+    <Project Path="src/RealtimeChat.Api/RealtimeChat.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RealtimeChat.UnitTests/RealtimeChat.UnitTests.csproj" />
+    <Project Path="tests/RealtimeChat.IntegrationTests/RealtimeChat.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
