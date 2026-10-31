@@ -27,8 +27,9 @@ public sealed class BackplaneTests(ApiFactory factory)
         await onSecond.Hub.InvokeAsync("Typing", conversation.Id);
         await Waiting.UntilAsync(() => onFirst.Typing.Any(t => t.UserId == mehmet.Id), "typing across instances");
 
-        await onSecond.Hub.InvokeAsync<long?>("MarkRead", conversation.Id, fromFirst.Seq);
-        await Waiting.UntilAsync(() => onFirst.Reads.Any(r => r.UserId == mehmet.Id), "the read receipt across instances");
+        // Mehmet's own message already marked everything before it as read for him; Ayşe has not read his yet.
+        await onFirst.Hub.InvokeAsync<long?>("MarkRead", conversation.Id, fromSecond.Seq);
+        await Waiting.UntilAsync(() => onSecond.Reads.Any(r => r.UserId == ayse.Id && r.Seq == fromSecond.Seq), "the read receipt across instances");
     }
 
     [Fact]
