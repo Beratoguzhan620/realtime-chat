@@ -16,6 +16,8 @@ SignalR ile anlık iletilen birebir ve grup sohbetleri. Her mesajın kendi sohbe
 
 ## Deneme
 
+**Canlı demo:** [realtime-chat-demo-hthr.onrender.com](https://realtime-chat-demo-hthr.onrender.com). Bir pencerede Ayşe, gizli bir pencerede Mehmet olarak giriş yap; mesajların, "yazıyor…" bilgisinin ve okundu işaretlerinin canlı geldiğini gör. Elif ve Can kendilerine yazılan mesajlara, hem birebir sohbetlerde hem grupta cevap veriyor. Ücretsiz bir sunucuda, veritabanı Neon'da çalışıyor: bir süre kimse açmadıysa ilk açılış bir dakika kadar sürebilir.
+
 ```bash
 docker compose up --build
 ```
