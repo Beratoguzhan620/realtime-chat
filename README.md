@@ -16,6 +16,8 @@ Direct and group chat with live delivery over SignalR. Every message has its pla
 
 ## Try it
 
+**Live demo:** [realtime-chat-demo-hthr.onrender.com](https://realtime-chat-demo-hthr.onrender.com). Sign in as Ayşe in one window and as Mehmet in a private window to watch messages, typing and read receipts arrive live; Elif and Can answer what is written to them, in their chats and in the group. It runs on a free server with the database on Neon: after a quiet spell the first visit can take about a minute.
+
 ```bash
 docker compose up --build
 ```
