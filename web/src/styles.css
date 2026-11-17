@@ -60,6 +60,8 @@ h1, h2, p { margin: 0; }
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow);
 }
 .auth-card h1 { font-size: 22px; font-weight: 600; margin-top: 8px; }
+.demo-sign-in { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.demo-sign-in p { font-size: 13px; }
 .auth-card label, .stacked { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
 .auth-card input, .input {
   height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
