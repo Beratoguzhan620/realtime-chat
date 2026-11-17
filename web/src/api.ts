@@ -50,6 +50,8 @@ export const api = {
     request<Session>("/api/auth/register", { method: "POST", body: json({ email, displayName, password }) }),
   login: (email: string, password: string) =>
     request<Session>("/api/auth/login", { method: "POST", body: json({ email, password }) }),
+  /** The public demo's sign-ins; empty anywhere else. */
+  demo: () => request<{ displayName: string; email: string; password: string }[]>("/api/demo"),
   conversations: () => request<Conversation[]>("/api/conversations"),
   conversation: (id: string) => request<Conversation>(`/api/conversations/${id}`),
   searchUsers: (query: string) => request<User[]>(`/api/users?query=${encodeURIComponent(query)}`),

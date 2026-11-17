@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { LoaderCircle, MessagesSquare } from "lucide-react";
 import { api, ApiError } from "../api";
 import type { Session } from "../types";
@@ -11,6 +11,23 @@ export function SignIn({ onSignedIn }: { onSignedIn: (session: Session) => void 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string[]>>({});
+  const [demo, setDemo] = useState<{ displayName: string; email: string; password: string }[]>([]);
+
+  // The public demo publishes two sign-ins; anywhere else the list is empty and nothing is shown.
+  useEffect(() => {
+    api.demo().then(setDemo, () => setDemo([]));
+  }, []);
+
+  async function signInAs(account: { email: string; password: string }) {
+    setBusy(true);
+    setError(null);
+    try {
+      onSignedIn(await api.login(account.email, account.password));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setBusy(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -81,6 +98,19 @@ export function SignIn({ onSignedIn }: { onSignedIn: (session: Session) => void 
         >
           {mode === "login" ? "New here? Create an account" : "Already have an account? Sign in"}
         </button>
+        {mode === "login" && demo.length > 0 && (
+          <div className="demo-sign-in">
+            <p className="muted">
+              This is a public demo. Sign in as one person here and as the other in a private window to watch messages,
+              typing and read receipts arrive live. Elif and Can answer in their chats too.
+            </p>
+            {demo.map((account) => (
+              <button key={account.email} type="button" className="button wide" disabled={busy} onClick={() => void signInAs(account)}>
+                Sign in as {account.displayName}
+              </button>
+            ))}
+          </div>
+        )}
       </form>
     </main>
   );
